@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>BioZero Store - Detección Cinemática en Vivo</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0b1329; color: #f8fafc; margin: 0; min-height: 100vh; overflow-x: hidden; }
+    
+    header {
+      background: #1e293b; padding: 0.8rem 2rem; display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #334155; position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-size: 1.3rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .nav-actions { display: flex; align-items: center; gap: 0.8rem; }
+    
+    .btn-control {
+      background: #0f172a; border: 1px solid #475569; color: #cbd5e1; padding: 0.45rem 0.8rem;
+      border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.2s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .btn-control:hover { border-color: #38bdf8; color: #fff; }
+    .btn-diag.active { background: #064e3b; border-color: #10b981; color: #a7f3d0; box-shadow: 0 0 10px rgba(16, 185, 129, 0.35); }
+    
+    .threat-pill { background: #450a0a; border: 1px solid #ef4444; color: #fca5a5; padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+    .cart-pill { background: #0284c7; padding: 0.45rem 0.9rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .btn-user { background: #334155; color: #38bdf8; border: 1px solid #475569; padding: 0.45rem 0.9rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+
+    .container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+    .view-grid { display: grid; grid-template-columns: 2.2fr 1fr; gap: 2rem; }
+    
+    .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+    .product-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.2rem; display: flex; flex-direction: column; justify-content: space-between; transition: 0.2s; position: relative; }
+    .product-img { width: 100%; height: 120px; background: #0f172a; border-radius: 8px; display: grid; place-content: center; font-size: 3rem; margin-bottom: 0.8rem; }
+    .product-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.3rem; }
+    .product-price { color: #38bdf8; font-weight: bold; font-size: 1.1rem; margin-bottom: 1rem; }
+    .btn-add { background: #0284c7; color: white; border: none; padding: 0.65rem; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+
+    .sidebar { display: flex; flex-direction: column; gap: 1.2rem; }
+    .panel { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.2rem; }
+    .panel h3 { margin-top: 0; font-size: 1.05rem; color: #cbd5e1; }
+    select { width: 100%; padding: 0.6rem; background: #0f172a; color: white; border: 1px solid #475569; border-radius: 6px; margin-top: 0.4rem; }
+    
+    .cart-list { list-style: none; padding: 0; margin: 1rem 0; max-height: 180px; overflow-y: auto; }
+    .cart-item { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.4rem 0; border-bottom: 1px solid #334155; }
+    .cart-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin: 1rem 0; }
+    .btn-checkout { width: 100%; background: #10b981; color: white; border: none; padding: 0.8rem; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-checkout:disabled { background: #475569; cursor: not-allowed; }
+
+    #bot-forensic-card {
+      display: none; background: #450a0a; border: 1px solid #ef4444; border-radius: 12px; padding: 1.2rem; color: #fecaca; box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25); animation: fadeIn 0.3s ease;
+    }
+    .forensic-table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-size: 0.78rem; background: rgba(0,0,0,0.3); border-radius: 6px; }
+    .forensic-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .forensic-table td:first-child { color: #fca5a5; font-weight: 600; width: 45%; }
+
+    /* HUD FLOTANTE */
+    #live-hud {
+      display: none; position: fixed; bottom: 25px; right: 25px; background: rgba(15, 23, 42, 0.95); border: 2px solid #ef4444; border-radius: 16px; padding: 1.2rem; width: 340px; box-shadow: 0 10px 40px rgba(239, 68, 68, 0.4); z-index: 1000; backdrop-filter: blur(10px);
+    }
+    .hud-title { font-size: 0.85rem; font-weight: bold; color: #f87171; display: flex; justify-content: space-between; align-items: center; }
+    .hud-bar-bg { background: #334155; height: 12px; border-radius: 6px; overflow: hidden; margin: 0.6rem 0; }
+    .hud-bar-fill { height: 100%; width: 100%; background: #10b981; transition: width 0.15s ease, background 0.2s ease; }
+    .hud-stat { font-size: 0.78rem; display: flex; justify-content: space-between; margin-bottom: 0.3rem; color: #cbd5e1; }
+
+    #bot-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 998; }
+
+    .bot-cursor-node {
+      position: fixed; display: flex; align-items: center; gap: 4px; pointer-events: none; z-index: 999;
+      transform: translate(-4px, -4px); filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
+    }
+    .bot-tag { color: white; font-size: 0.65rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
+
+    /* Modales */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(11, 19, 41, 0.85); backdrop-filter: blur(6px); display: none; place-content: center; z-index: 1200; }
+    .modal-box { background: #1e293b; border: 1px solid #475569; border-radius: 16px; width: 380px; padding: 2rem; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.3rem; }
+    .form-group input { width: 100%; padding: 0.7rem; background: #0f172a; border: 1px solid #475569; color: white; border-radius: 8px; }
+    .btn-primary { width: 100%; padding: 0.85rem; background: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    .btn-secondary { width: 100%; background: transparent; border: none; color: #94a3b8; margin-top: 0.6rem; cursor: pointer; font-size: 0.85rem; }
+
+    /* Vista Mi Cuenta */
+    #account-view { display: none; }
+    .profile-card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 1.5rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; }
+    .avatar { width: 64px; height: 64px; border-radius: 50%; background: #0284c7; display: grid; place-content: center; font-size: 1.8rem; color: white; }
+    .order-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+    .biozero-badge { background: #064e3b; color: #a7f3d0; border: 1px solid #10b981; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+
+    #lock-overlay { position: fixed; inset: 0; background: rgba(11, 19, 41, 0.97); backdrop-filter: blur(8px); display: none; place-content: center; text-align: center; z-index: 1500; }
+    .lock-box { background: #1e293b; border: 1px solid #475569; padding: 2rem; border-radius: 20px; width: 340px; }
+    .bar-container { background: #0f172a; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 1rem; }
+    .bar-fill { height: 100%; width: 0%; background: #38bdf8; transition: width 0.1s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <canvas id="bot-canvas"></canvas>
+  <div id="bot-cursors-container"></div>
+
+  <!-- HUD MULTI-BOT FLOTANTE -->
+  <div id="live-hud">
+    <div class="hud-title">
+      <span>ATAQUE DIVERSIFICADO (BOTNET)</span>
+      <span id="hud-status" style="color:#ef4444;">ANALIZANDO...</span>
+    </div>
+    <div class="hud-bar-bg">
+      <div id="hud-score-fill" class="hud-bar-fill"></div>
+    </div>
+    <div class="hud-stat">
+      <span>Score Global BioZero:</span>
+      <strong id="hud-score-val">1.00 / 1.00</strong>
+    </div>
+    <div class="hud-stat">
+      <span>Bots Concurrentes:</span>
+      <strong id="hud-bots-count" style="color:#f87171;">3 Activos</strong>
+    </div>
+    <div class="hud-stat">
+      <span>Cinemática Observada:</span>
+      <strong id="hud-variance-val">Trayectorias Lineales (0.00)</strong>
+    </div>
+    <div class="hud-stat" style="margin-top:0.4rem; padding-top:0.4rem; border-top:1px solid #334155;">
+      <span id="hud-verdict" style="color:#f87171; font-weight:bold; width:100%; text-align:center;">
+        Múltiples hilos apuntando a diferentes objetivos...
+      </span>
+    </div>
+  </div>
+
+  <!-- MODAL DE BLOQUEO POR INACTIVIDAD -->
+  <div id="lock-overlay">
+    <div class="lock-box">
+      <div id="gesture-icon" style="font-size: 2.8rem; margin-bottom: 0.8rem;">↔️</div>
+      <h3 style="margin:0 0 0.5rem 0;">Sesión en Pausa</h3>
+      <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:1rem;" id="gesture-instruction">
+        Inactividad detectada.<br>Ejecuta tu clave gestual para desbloquear.
+      </p>
+      <div class="bar-container">
+        <div id="unlock-progress" class="bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE LOGIN / CAMBIAR DE USUARIO -->
+  <div id="login-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h3 style="margin-top:0; color:#38bdf8;">👤 Iniciar Sesión / Cambiar Cuenta</h3>
+      <p style="font-size:0.82rem; color:#94a3b8; margin-bottom:1.2rem;">Autenticación pasiva protegida con BioZero.</p>
+      <form id="auth-form-dialog">
+        <div class="form-group">
+          <label>Correo Electrónico</label>
+          <input type="email" id="input-auth-email" value="camilo.duque@empresa.com" required>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="input-auth-pass" value="••••••••" required>
+        </div>
+        <button type="submit" class="btn-primary" style="background:#0284c7;">Acceder a la Cuenta</button>
+        <button type="button" class="btn-secondary" onclick="closeLoginModal()">Cancelar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CHECKOUT -->
+  <div id="checkout-modal" class="modal-overlay">
+    <div class="modal-box" style="width:420px;">
+      <h3 style="margin-top:0; color:#38bdf8;">💳 Pasarela de Pago Segura</h3>
+      <div class="form-group">
+        <label>Titular de la tarjeta</label>
+        <input type="text" id="pay-cardholder-name" value="DANIEL CAMILO DUQUE">
+      </div>
+      <div class="form-group">
+        <label>Número de Tarjeta</label>
+        <input type="text" value="•••• •••• •••• 8842">
+      </div>
+      <div style="background:#0f172a; padding:0.8rem; border-radius:8px; margin-bottom:1rem; display:flex; justify-content:space-between; font-weight:bold;">
+        <span>Total:</span>
+        <span id="modal-pay-total" style="color:#38bdf8;">$0.00</span>
+      </div>
+      <button class="btn-primary" id="btn-confirm-pay" style="background:#10b981;">Confirmar y Pagar</button>
+      <button type="button" class="btn-secondary" onclick="closeCheckoutModal()">Cancelar</button>
+    </div>
+  </div>
+
+  <header>
+    <div class="logo" onclick="switchView('store')">🛒 BioZero Store</div>
+    <div class="nav-actions">
+      <!-- MODO DIAGNÓSTICO -->
+      <button class="btn-control btn-diag" id="btn-toggle-diag" onclick="toggleDiagnosticMode()" title="Atajo: Tecla D">
+        <span>🧪</span> <span id="diag-btn-text">Diagnóstico Humano [D]</span>
+      </button>
+
+      <!-- BOTÓN LIMPIAR LIENZO -->
+      <button class="btn-control" onclick="clearVisualTraces()" title="Limpia trazos y cursores fantasma">
+        <span>🧹</span> <span>Limpiar Lienzo</span>
+      </button>
+
+      <!-- CONTADOR DE AMENAZAS -->
+      <div class="threat-pill">
+        🛡️ Bloqueos: <span id="threat-counter" style="color:#fff; font-weight:bold;">0</span>
+      </div>
+
+      <div class="cart-pill" id="cart-counter" onclick="switchView('store')">Carrito: 0 items</div>
+      
+      <!-- PERFIL DE USUARIO Y CAMBIO DE CUENTA -->
+      <button class="btn-user" id="btn-user-badge" onclick="switchView('account')">👤 Daniel Duque</button>
+      <button class="btn-control" onclick="openLoginModal()" style="color:#f87171;" title="Cambiar cuenta o iniciar sesión">Cerrar Sesión</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div id="store-view" class="view-grid">
+      <div>
+        <h2 style="margin-top:0;">Catálogo de Productos</h2>
+        <div class="catalog-grid" id="catalog-container"></div>
+      </div>
+
+      <div class="sidebar">
+        <div class="panel">
+          <h3>Seguridad Pasiva</h3>
+          <label style="font-size:0.8rem; color:#94a3b8;">Clave gestual de reactivación:</label>
+          <select id="user-chosen-gesture">
+            <option value="horizontal">↔️ Horizontal (Zigzag)</option>
+            <option value="vertical">↕️ Vertical (Arriba / Abajo)</option>
+            <option value="circle">🔄 Círculo continuo</option>
+          </select>
+        </div>
+
+        <div class="panel">
+          <h3>Tu Carrito</h3>
+          <ul class="cart-list" id="cart-items">
+            <li style="color:#64748b; font-size:0.85rem;">El carrito está vacío.</li>
+          </ul>
+          <div class="cart-total">
+            <span>Total:</span>
+            <span id="cart-total-val">$0.00</span>
+          </div>
+          <button class="btn-checkout" id="btn-checkout" onclick="openCheckoutModal()" disabled>Proceder al Pago</button>
+        </div>
+
+        <div id="bot-forensic-card"></div>
+      </div>
+    </div>
+
+    <!-- VISTA MI CUENTA -->
+    <div id="account-view">
+      <div class="profile-card">
+        <div style="display:flex; align-items:center; gap:1.2rem;">
+          <div class="avatar" id="user-avatar-icon">👨‍💻</div>
+          <div>
+            <h2 style="margin: 0 0 0.3rem 0; font-size: 1.3rem;" id="user-display-name">DANIEL CAMILO DUQUE</h2>
+            <span style="color:#94a3b8; font-size:0.85rem;" id="user-display-email">camilo.duque@empresa.com</span>
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+              <span class="biozero-badge">Identidad Biometrizada</span>
+              <span style="background:#0284c7; color:white; padding:0.3rem 0.6rem; border-radius:6px; font-size:0.75rem; font-weight:600;">Cliente Verificado</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-control" onclick="openLoginModal()" style="padding:0.6rem 1.2rem; background:#0f172a; border-color:#38bdf8; color:#38bdf8;">🔄 Cambiar de Cuenta</button>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="margin:0;">Historial de Órdenes</h3>
+        <button class="btn-add" onclick="switchView('store')" style="padding:0.4rem 0.8rem; font-size:0.85rem;">← Volver al Catálogo</button>
+      </div>
+
+      <div id="orders-container">
+        <p style="color:#64748b; font-size:0.9rem;">No has realizado pedidos aún.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PRODUCTS = [
+      { id: 1, name: 'MacBook Pro M-Series', price: 1999, icon: '💻' },
+      { id: 2, name: 'Xbox Series X Console', price: 499, icon: '🎮' },
+      { id: 3, name: 'Razer BlackShark V2 X', price: 59, icon: '🎧' },
+      { id: 4, name: 'iPad Air Retina', price: 599, icon: '📱' },
+      { id: 5, name: 'Monitor Gamer 4K', price: 349, icon: '🖥️' },
+      { id: 6, name: 'Teclado Mecánico', price: 129, icon: '⌨️' }
+    ];
+
+    let cart = [];
+    let selectedGesture = 'horizontal';
+    let threatsBlockedCount = 0;
+
+    // Estado del usuario activo
+    let currentUser = {
+      name: 'DANIEL CAMILO DUQUE',
+      email: 'camilo.duque@empresa.com'
+    };
+
+    const catalogContainer = document.getElementById('catalog-container');
+    PRODUCTS.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      card.id = `prod-card-${p.id}`;
+      card.innerHTML = `
+        <div>
+          <div class="product-img">${p.icon}</div>
+          <div class="product-title">${p.name}</div>
+          <div class="product-price">$${p.price}.00</div>
+        </div>
+        <button class="btn-add" id="btn-add-${p.id}" onclick="handleAddToCart(${p.id})">Agregar al Carrito</button>
+      `;
+      catalogContainer.appendChild(card);
+    });
+
+    const canvas = document.getElementById('bot-canvas');
+    const ctx = canvas.getContext('2d');
+    function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const liveHud = document.getElementById('live-hud');
+    const hudScoreFill = document.getElementById('hud-score-fill');
+    const hudScoreVal = document.getElementById('hud-score-val');
+    const hudBotsCount = document.getElementById('hud-bots-count');
+    const hudVerdict = document.getElementById('hud-verdict');
+    const hudStatus = document.getElementById('hud-status');
+    const cursorsContainer = document.getElementById('bot-cursors-container');
+    const threatCounterEl = document.getElementById('threat-counter');
+
+    const botColors = {
+      'BOT-01': '#ef4444',
+      'BOT-02': '#f97316',
+      'BOT-03': '#a855f7'
+    };
+
+    let botHistory = {};
+
+    // LIMPIEZA DE TRAZOS Y CURSORES
+    function clearVisualTraces() {
+      botHistory = {};
+      humanTrail = [];
+      cursorsContainer.innerHTML = '';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      liveHud.style.display = 'none';
+
+      const forensicCard = document.getElementById('bot-forensic-card');
+      if (forensicCard) forensicCard.style.display = 'none';
+    }
+
+    // Modo Diagnóstico (Estela Verde)
+    let isDiagnosticMode = false;
+    let humanTrail = [];
+
+    function toggleDiagnosticMode() {
+      isDiagnosticMode = !isDiagnosticMode;
+      const btn = document.getElementById('btn-toggle-diag');
+      const text = document.getElementById('diag-btn-text');
+
+      if (isDiagnosticMode) {
+        btn.classList.add('active');
+        text.innerText = 'Estela Humana Activa ✅';
+      } else {
+        btn.classList.remove('active');
+        text.innerText = 'Diagnóstico Humano [D]';
+        humanTrail = [];
+        redrawCanvas();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'd' || e.key === 'D') {
+        if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+        toggleDiagnosticMode();
+      }
+    });
+
+    function redrawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (isDiagnosticMode && humanTrail.length > 1) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([]);
+
+        for (let i = 0; i < humanTrail.length; i++) {
+          if (i === 0) ctx.moveTo(humanTrail[i].x, humanTrail[i].y);
+          else ctx.lineTo(humanTrail[i].x, humanTrail[i].y);
+        }
+        ctx.stroke();
+
+        const lastPt = humanTrail[humanTrail.length - 1];
+        ctx.beginPath();
+        ctx.arc(lastPt.x, lastPt.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#34d399';
+        ctx.fill();
+      }
+
+      for (const [id, points] of Object.entries(botHistory)) {
+        const strokeCol = botColors[id] || '#ef4444';
+        ctx.beginPath();
+        ctx.strokeStyle = strokeCol;
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([6, 6]);
+        for (let i = 0; i < points.length; i++) {
+          if (i === 0) ctx.moveTo(points[i].x, points[i].y);
+          else ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // Colector Biométrico Humano
+    const BioZeroCollector = (() => {
+      const mouseTelemetry = [];
+      const keystrokeTelemetry = [];
+      let lastKeyTime = null;
+
+      window.addEventListener('mousemove', (e) => {
+        resetInactivityTimer();
+        evalUserGesture(e);
+
+        if (isDiagnosticMode) {
+          humanTrail.push({ x: e.clientX, y: e.clientY });
+          if (humanTrail.length > 25) humanTrail.shift();
+          redrawCanvas();
+        }
+
+        if (mouseTelemetry.length >= 40) mouseTelemetry.shift();
+        const now = performance.now();
+        const pt = { x: e.clientX, y: e.clientY, t: Number(now.toFixed(2)) };
+
+        if (mouseTelemetry.length > 0) {
+          const prev = mouseTelemetry[mouseTelemetry.length - 1];
+          const dt = pt.t - prev.t;
+          pt.speed = dt > 0 ? Number((Math.hypot(pt.x - prev.x, pt.y - prev.y) / dt).toFixed(4)) : 0;
+        } else pt.speed = 0;
+
+        mouseTelemetry.push(pt);
+      }, { passive: true });
+
+      window.addEventListener('keydown', (e) => {
+        resetInactivityTimer();
+        const now = performance.now();
+        if (lastKeyTime) keystrokeTelemetry.push({ key: e.code, flight: Number((now - lastKeyTime).toFixed(2)) });
+        lastKeyTime = now;
+      });
+
+      return {
+        getPayload: () => ({
+          environment: { webdriver: navigator.webdriver || false },
+          mouse: [...mouseTelemetry],
+          keystrokes: [...keystrokeTelemetry]
+        })
+      };
+    })();
+
+    // Inactividad y Gestos
+    const INACTIVITY_MS = 12000;
+    let inactivityTimer = null, isLocked = false, gestureProgress = 0;
+    let prevPos = null, prevDir = null;
+
+    function resetInactivityTimer() {
+      if (isLocked) return;
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(lockSession, INACTIVITY_MS);
+    }
+    resetInactivityTimer();
+
+    document.getElementById('user-chosen-gesture').addEventListener('change', (e) => selectedGesture = e.target.value);
+
+    function lockSession() {
+      isLocked = true;
+      gestureProgress = 0;
+      updateBar(0);
+      prevPos = null; prevDir = null;
+      const icon = document.getElementById('gesture-icon');
+      const text = document.getElementById('gesture-instruction');
+
+      if (selectedGesture === 'horizontal') {
+        icon.innerText = '↔️';
+        text.innerHTML = 'Inactividad detectada.<br><strong>Mueve el mouse de lado a lado</strong> para desbloquear.';
+      } else if (selectedGesture === 'vertical') {
+        icon.innerText = '↕️';
+        text.innerHTML = 'Inactividad detectada.<br><strong>Mueve el mouse de arriba a abajo</strong> para desbloquear.';
+      } else {
+        icon.innerText = '🔄';
+        text.innerHTML = 'Inactividad detectada.<br><strong>Traza círculos continuos</strong> con el cursor.';
+      }
+      document.getElementById('lock-overlay').style.display = 'grid';
+    }
+
+    function evalUserGesture(e) {
+      if (!isLocked) return;
+      if (!prevPos) { prevPos = { x: e.clientX, y: e.clientY }; return; }
+
+      const dx = e.clientX - prevPos.x;
+      const dy = e.clientY - prevPos.y;
+
+      if (selectedGesture === 'horizontal' && Math.abs(dx) > 16) {
+        const dir = dx > 0 ? 'R' : 'L';
+        if (prevDir && dir !== prevDir) { gestureProgress += 25; updateBar(gestureProgress); }
+        prevDir = dir; prevPos = { x: e.clientX, y: e.clientY };
+      } else if (selectedGesture === 'vertical' && Math.abs(dy) > 16) {
+        const dir = dy > 0 ? 'D' : 'U';
+        if (prevDir && dir !== prevDir) { gestureProgress += 25; updateBar(gestureProgress); }
+        prevDir = dir; prevPos = { x: e.clientX, y: e.clientY };
+      } else if (selectedGesture === 'circle') {
+        if (Math.hypot(dx, dy) > 10) { gestureProgress += 6; updateBar(gestureProgress); prevPos = { x: e.clientX, y: e.clientY }; }
+      }
+
+      if (gestureProgress >= 100) {
+        isLocked = false;
+        document.getElementById('lock-overlay').style.display = 'none';
+        resetInactivityTimer();
+      }
+    }
+
+    function updateBar(val) { document.getElementById('unlock-progress').style.width = `${Math.min(100, val)}%`; }
+
+    // Manejo de Vistas
+    function switchView(viewName) {
+      if (viewName === 'store') {
+        document.getElementById('store-view').style.display = 'grid';
+        document.getElementById('account-view').style.display = 'none';
+      } else {
+        document.getElementById('store-view').style.display = 'none';
+        document.getElementById('account-view').style.display = 'block';
+        loadOrders();
+      }
+    }
+
+    // Modal de Login
+    function openLoginModal() { document.getElementById('login-modal').style.display = 'grid'; }
+    function closeLoginModal() { document.getElementById('login-modal').style.display = 'none'; }
+
+    document.getElementById('auth-form-dialog').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('input-auth-email').value;
+      const pass = document.getElementById('input-auth-pass').value;
+
+      const res = await fetch('/api/v1/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: email, pass: pass, bioZeroTelemetry: BioZeroCollector.getPayload() })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        currentUser = data.user;
+        document.getElementById('btn-user-badge').innerText = `👤 ${currentUser.name.split(' ')[0]}`;
+        document.getElementById('user-display-name').innerText = currentUser.name;
+        document.getElementById('user-display-email').innerText = currentUser.email;
+        document.getElementById('pay-cardholder-name').value = currentUser.name;
+        closeLoginModal();
+        switchView('account');
+      }
+    });
+
+    async function handleAddToCart(id) {
+      const prod = PRODUCTS.find(p => p.id === id);
+      const res = await fetch('/api/v1/cart/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionName: 'Agregar al Carrito',
+          data: { productId: id, name: prod.name },
+          bioZeroTelemetry: BioZeroCollector.getPayload()
+        })
+      });
+
+      if (res.ok) {
+        cart.push(prod);
+        renderCart();
+      }
+    }
+
+    function renderCart() {
+      const cartList = document.getElementById('cart-items');
+      const cartTotal = document.getElementById('cart-total-val');
+      const btnCheckout = document.getElementById('btn-checkout');
+      const cartCounter = document.getElementById('cart-counter');
+
+      cartCounter.innerText = `Carrito: ${cart.length} items`;
+      if (cart.length === 0) {
+        cartList.innerHTML = '<li style="color:#64748b; font-size:0.85rem;">El carrito está vacío.</li>';
+        cartTotal.innerText = '$0.00';
+        btnCheckout.disabled = true;
+        return;
+      }
+
+      cartList.innerHTML = cart.map(item => `
+        <li class="cart-item">
+          <span>${item.name}</span>
+          <span style="color:#38bdf8; font-weight:600;">$${item.price}</span>
+        </li>
+      `).join('');
+
+      const total = cart.reduce((sum, item) => sum + item.price, 0);
+      cartTotal.innerText = `$${total.toFixed(2)}`;
+      btnCheckout.disabled = false;
+    }
+
+    function openCheckoutModal() {
+      const total = cart.reduce((sum, item) => sum + item.price, 0);
+      document.getElementById('modal-pay-total').innerText = `$${total.toFixed(2)} USD`;
+      document.getElementById('checkout-modal').style.display = 'grid';
+    }
+    function closeCheckoutModal() { document.getElementById('checkout-modal').style.display = 'none'; }
+
+    document.getElementById('btn-confirm-pay').addEventListener('click', async () => {
+      const total = cart.reduce((sum, item) => sum + item.price, 0);
+      const res = await fetch('/api/v1/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionName: 'Finalizar Compra',
+          data: {
+            userEmail: currentUser.email,
+            totalAmount: total,
+            paymentMethod: 'Tarjeta de Crédito Nu',
+            items: cart.map(c => c.name)
+          },
+          bioZeroTelemetry: BioZeroCollector.getPayload()
+        })
+      });
+
+      if (res.ok) {
+        closeCheckoutModal();
+        cart = [];
+        renderCart();
+        switchView('account');
+      }
+    });
+
+    async function loadOrders() {
+      const res = await fetch(`/api/v1/orders?email=${encodeURIComponent(currentUser.email)}`);
+      const data = await res.json();
+      const container = document.getElementById('orders-container');
+      if (!data.orders || data.orders.length === 0) {
+        container.innerHTML = `<p style="color:#64748b; font-size:0.9rem;">No hay pedidos registrados para ${currentUser.email}.</p>`;
+        return;
+      }
+      container.innerHTML = data.orders.map(ord => `
+        <div class="order-card">
+          <div style="display:flex; justify-content:space-between; border-bottom:1px solid #334155; padding-bottom:0.8rem; margin-bottom:0.8rem;">
+            <div>
+              <strong style="color:#38bdf8;">${ord.orderId}</strong>
+              <span style="color:#94a3b8; font-size:0.8rem; margin-left:0.6rem;">${ord.date}</span>
+            </div>
+            <span class="biozero-badge">Biometría Verificada (Score: ${ord.score})</span>
+          </div>
+          <div style="font-size:0.85rem; color:#cbd5e1; margin-bottom:0.5rem;"><strong>Artículos:</strong> ${ord.items.join(', ')}</div>
+          <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+            <span style="color:#94a3b8;">${ord.paymentMethod}</span>
+            <span style="font-size:1.1rem; font-weight:bold; color:#10b981;">Total: $${ord.total}.00</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // CANAL SSE
+    const sse = new EventSource('/api/v1/events');
+    sse.onmessage = (ev) => {
+      const data = JSON.parse(ev.data);
+
+      if (data.type === 'CLEAR_CANVAS') {
+        clearVisualTraces();
+      }
+
+      if (data.type === 'BOT_FRAME') {
+        liveHud.style.display = 'block';
+
+        const botId = data.botId || 'BOT-01';
+        const color = botColors[botId] || '#ef4444';
+
+        let cursorNode = document.getElementById(`cursor-${botId}`);
+        if (!cursorNode) {
+          cursorNode = document.createElement('div');
+          cursorNode.id = `cursor-${botId}`;
+          cursorNode.className = 'bot-cursor-node';
+          cursorNode.innerHTML = `
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M4 2L20 10L12 13L9 21L4 2Z" fill="${color}" stroke="#ffffff" stroke-width="1.5"/>
+            </svg>
+            <span class="bot-tag" style="background:${color};">${botId}</span>
+          `;
+          cursorsContainer.appendChild(cursorNode);
+        }
+
+        cursorNode.style.left = `${data.x}px`;
+        cursorNode.style.top = `${data.y}px`;
+
+        if (!botHistory[botId]) botHistory[botId] = [];
+        botHistory[botId].push({ x: data.x, y: data.y });
+
+        redrawCanvas();
+
+        hudScoreVal.innerText = `${data.score.toFixed(2)} / 1.00`;
+        hudScoreFill.style.width = `${data.score * 100}%`;
+        hudBotsCount.innerText = `3 Bots en Diferentes Direcciones`;
+        hudVerdict.innerText = data.status;
+
+        if (data.score <= 0.4) {
+          hudScoreFill.style.background = '#ef4444';
+          hudStatus.innerText = 'RED BOTNET MITIGADA';
+        } else if (data.score <= 0.7) {
+          hudScoreFill.style.background = '#f59e0b';
+          hudStatus.innerText = 'ATAQUE DIVERSIFICADO';
+        }
+      }
+
+      if (data.type === 'BOT_BLOCKED_VISUAL') {
+        threatsBlockedCount += 3;
+        threatCounterEl.innerText = threatsBlockedCount;
+
+        hudScoreFill.style.width = '0%';
+        hudScoreVal.innerText = '0.00 / 1.00';
+        hudStatus.innerText = 'OBJETIVOS PROTEGIDOS';
+        hudVerdict.innerHTML = `🛑 <strong>BOTNET NEUTRALIZADA</strong><br><small>3/3 Vectores bloqueados</small>`;
+
+        const btnMac = document.getElementById('btn-add-1');
+        const btnXbox = document.getElementById('btn-add-2');
+        const btnCheckout = document.getElementById('btn-checkout');
+
+        if (btnMac) { btnMac.style.background = '#ef4444'; btnMac.innerText = '🛑 Bloqueado'; }
+        if (btnXbox) { btnXbox.style.background = '#ef4444'; btnXbox.innerText = '🛑 Bloqueado'; }
+        if (btnCheckout) { btnCheckout.style.background = '#ef4444'; btnCheckout.innerText = '🛑 Checkout Bloqueado'; }
+
+        // Autolimpieza tras 4.5 segundos para que la página quede limpia sola
+        setTimeout(() => {
+          if (btnMac) { btnMac.style.background = '#0284c7'; btnMac.innerText = 'Agregar al Carrito'; }
+          if (btnXbox) { btnXbox.style.background = '#0284c7'; btnXbox.innerText = 'Agregar al Carrito'; }
+          if (btnCheckout) { btnCheckout.style.background = '#10b981'; btnCheckout.innerText = 'Proceder al Pago'; }
+          clearVisualTraces();
+        }, 4500);
+      }
+
+      if (data.type === 'BOT_BLOCKED_FORENSIC') {
+        threatsBlockedCount++;
+        threatCounterEl.innerText = threatsBlockedCount;
+
+        const forensicCard = document.getElementById('bot-forensic-card');
+        forensicCard.style.display = 'block';
+
+        const d = data.interceptedData || {};
+        let rows = '';
+        for (const [k, v] of Object.entries(d)) {
+          rows += `<tr><td>${k}</td><td>${v}</td></tr>`;
+        }
+
+        const reason = (data.diagnostico && data.diagnostico.reasons) ? data.diagnostico.reasons[0] : 'Interacción sin física biológica';
+
+        forensicCard.innerHTML = `
+          <div style="font-size:0.95rem; font-weight:bold; color:#f87171; margin-bottom:0.3rem;">🛑 ATAQUE DE BOT INTERCEPTADO</div>
+          <div style="font-size:0.82rem; font-weight:600; color:#ffffff; margin-bottom:0.5rem;">
+            El captcha invisible evaluó la física de navegación y NO detectó un humano.
+          </div>
+          <div style="font-size:0.75rem; color:#cbd5e1; margin-bottom:0.5rem;">
+            <strong>Acción interceptada:</strong> ${data.action}<br>
+            <strong>Causa:</strong> <em>${reason}</em>
+          </div>
+          <div style="font-size:0.73rem; color:#fca5a5; font-weight:bold;">Telemetría capturada al atacante:</div>
+          <table class="forensic-table">${rows}</table>
+        `;
+      }
+    };
+  </script>
+</body>
+</html>
